@@ -94,7 +94,7 @@ button:hover {
     }
 
     #chat-box {
-        height: calc(100% - 70px); /* Ajusta para dejar espacio al input */
+        height: calc(100% - 70px); /* Deja espacio para el input y botón */
         overflow-y: auto;
         margin-bottom: 0;
     }
@@ -107,6 +107,20 @@ button:hover {
         padding: 8px;
         background: rgba(0, 0, 0, 0.7);
         box-sizing: border-box;
+        display: flex;
+        gap: 5px;
+    }
+
+    .input-area input {
+        flex: 1;
+        font-size: 1rem;
+        padding: 10px;
+    }
+
+    .input-area button {
+        flex-shrink: 0;
+        padding: 10px;
+        font-size: 1rem;
     }
 }
 
