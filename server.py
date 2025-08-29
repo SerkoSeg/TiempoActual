@@ -44,22 +44,7 @@ def get_subject(msg):
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-@app.post("/chat")
-async def chat(request: Request):
-    data = await request.json()
-    user_message = data.get("message", "").strip()
-
-    if not user_message:
-        return JSONResponse({"reply": "Por favor escribe algo."})
-
-    try:
-        reply = intelligence_with_tools(user_message)
-    except Exception as e:
-        reply = f"Hubo un error procesando tu solicitud: {e}"
-
-    return JSONResponse({"reply": reply})
-
-@app.get("/process_emails")
+@app.api_route("/process_emails", methods=["GET", "HEAD"])
 async def process_emails():
     service = get_service()
     label_id = get_or_create_label(service, LABEL_NAME)
@@ -87,6 +72,21 @@ async def process_emails():
             mark_as_processed(service, m["id"], label_id)
 
     return {"processed": processed, "count": len(processed)}
+
+@app.post("/chat")
+async def chat(request: Request):
+    data = await request.json()
+    user_message = data.get("message", "").strip()
+
+    if not user_message:
+        return JSONResponse({"reply": "Por favor escribe algo."})
+
+    try:
+        reply = intelligence_with_tools(user_message)
+    except Exception as e:
+        reply = f"Hubo un error procesando tu solicitud: {e}"
+
+    return JSONResponse({"reply": reply})
 
 # Servidor para Render (usa el puerto que da Render)
 if __name__ == "__main__":
