@@ -9,7 +9,7 @@ from fastapi.templating import Jinja2Templates
 from tools import intelligence_with_tools
 
 # Importa utilidades de Gmail
-from gmail_utils import (
+from gmail.gmail_utils import (
     get_service,
     get_or_create_label,
     list_unread_to_me,
