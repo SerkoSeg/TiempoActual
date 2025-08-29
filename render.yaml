@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: tiempo-actual
+    name: tiempoactual
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
@@ -14,4 +14,4 @@ services:
 cronJobs:
   - name: process-emails
     schedule: "*/5 * * * *"   # cada 5 minutos
-    command: curl https://tiempo-actual.onrender.com/process_emails
+    command: curl https://tiempoactual.onrender.com/process_emails
