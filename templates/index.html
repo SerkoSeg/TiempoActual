@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <!-- Evita zoom y mejora experiencia en móvil -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chat del Clima</title>
+    <!-- Enlazamos el CSS desde la carpeta static -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="chat-container">
+        <h1>🌤️ Chat del Clima</h1>
+        <div id="chat-box"></div>
+        <div class="input-area">
+            <input id="user-input" type="text" placeholder="Pregúntame sobre el clima...">
+            <button onclick="sendMessage()">Enviar</button>
+        </div>
+    </div>
+
+    <script>
+        async function sendMessage() {
+            let input = document.getElementById("user-input");
+            let message = input.value.trim();
+            if (!message) return;
+
+            addMessage("Tú", message);
+            input.value = "";
+
+            let res = await fetch("/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message })
+            });
+            let data = await res.json();
+            addMessage("Bot", data.reply);
+        }
+
+        function addMessage(sender, text) {
+            let box = document.getElementById("chat-box");
+            let div = document.createElement("div");
+            div.className = sender === "Tú" ? "user-message" : "bot-message";
+            div.innerText = `${sender}: ${text}`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // Enviar con Enter
+        document.addEventListener('DOMContentLoaded', () => {
+            const inputField = document.getElementById("user-input");
+            inputField.addEventListener("keypress", function (e) {
+                if (e.key === "Enter") {
+                    e.preventDefault(); // Evita saltos de línea
+                    sendMessage();
+                }
+            });
+
+            // Ajuste inicial de altura
+            document.querySelector('.chat-container').style.height = window.innerHeight + 'px';
+        });
+
+        // Ajuste dinámico para móviles con teclado visible
+        window.addEventListener('resize', () => {
+            const chatContainer = document.querySelector('.chat-container');
+            chatContainer.style.height = window.innerHeight + 'px';
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: tiempo-actual
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GMAIL_TOKEN_JSON
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+cronJobs:
+  - name: process-emails
+    schedule: "*/5 * * * *"   # cada 5 minutos
+    command: curl https://tiempo-actual.onrender.com/process_emails
