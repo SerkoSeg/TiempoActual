@@ -1,6 +1,7 @@
 # tools.py
 import os
 import json
+import re
 import requests
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -41,6 +42,18 @@ def call_function(name, args):
     if name == "get_weather":
         return get_weather(**args)
     raise ValueError(f"Función desconocida: {name}")
+
+
+# ---------- Auxiliar: extraer lugar ----------
+def extract_location(user_text: str) -> str:
+    """
+    Extrae un posible lugar del texto del usuario.
+    Ejemplo: 'Clima en Albacete' -> 'Albacete'
+    """
+    match = re.search(r"(?:en|de)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)", user_text)
+    if match:
+        return match.group(1).strip()
+    return ""
 
 
 # ---------- Inteligencia con herramientas ----------
@@ -99,7 +112,15 @@ def intelligence_with_tools(prompt: str) -> str:
                 memory.add_message("assistant", result)
                 final_text += result
 
-        # 7️⃣ Fallback si no hay respuesta
+        # 7️⃣ Incluir ciudad si aplica
+        location = extract_location(prompt)
+        if location and "La temperatura actual" in final_text:
+            final_text = final_text.replace(
+                "La temperatura actual",
+                f"En {location} la temperatura actual"
+            )
+
+        # 8️⃣ Fallback si no hay respuesta
         if not final_text.strip():
             final_text = "Perdona, parece que hubo un error al generar la respuesta."
             memory.add_message("assistant", final_text)
