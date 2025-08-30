@@ -105,13 +105,32 @@ def get_sender_email(msg):
             return parseaddr(h["value"])[1]
     return None
 
+def get_message_id(msg):
+    """Extrae el Message-ID de un correo de Gmail"""
+    headers = msg.get("payload", {}).get("headers", [])
+    for h in headers:
+        if h["name"].lower() == "message-id":
+            return h["value"]
+    return None
+
 # --------- ENVÍO ----------
-def send_email(service, to, subject, body_text):
+def send_email(service, to, subject, body_text, thread_id=None, in_reply_to=None):
     message = MIMEText(body_text)
     message["to"] = to
     message["subject"] = subject
+
+    # Si queremos que la respuesta se inserte en el mismo hilo
+    if in_reply_to:
+        message["In-Reply-To"] = in_reply_to
+        message["References"] = in_reply_to
+
     raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
-    return service.users().messages().send(userId="me", body={"raw": raw}).execute()
+    body = {"raw": raw}
+
+    if thread_id:
+        body["threadId"] = thread_id
+
+    return service.users().messages().send(userId="me", body=body).execute()
 
 def mark_as_processed(service, msg_id, label_id):
     body = {"removeLabelIds": ["UNREAD"], "addLabelIds": [label_id]}

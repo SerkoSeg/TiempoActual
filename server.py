@@ -19,6 +19,7 @@ from gmail.gmail_utils import (
     get_sender_email,
     send_email,
     mark_as_processed,
+    get_message_id,
     SUBJECT,
     LABEL_NAME,
 )
@@ -31,13 +32,12 @@ BASE_DIR = Path(__file__).resolve().parent
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
-# --------- BASE DE DATOS ----------
+# --------- BASE DE DATOS PARA RESÚMENES ----------
 DB_PATH = BASE_DIR / "conversations.db"
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    # Tabla para guardar resumen por usuario
     c.execute("""
         CREATE TABLE IF NOT EXISTS conversation_summary (
             sender TEXT PRIMARY KEY,
@@ -95,6 +95,8 @@ async def process_emails():
         sender = get_sender_email(msg)
         body_in = extract_text_from_message(msg)
         subject_in = get_subject(msg)
+        thread_id = msg.get("threadId")
+        message_id = get_message_id(msg)
 
         if not sender:
             mark_as_processed(service, m["id"], label_id)
@@ -103,7 +105,7 @@ async def process_emails():
         # Recuperar el resumen actual del remitente
         prev_summary = get_summary(sender)
 
-        # Crear contexto con resumen previo + nuevo mensaje
+        # Crear prompt para actualizar resumen
         prompt = f"""
         Resumen previo de la conversación:
         {prev_summary}
@@ -121,12 +123,13 @@ async def process_emails():
             # Guardar resumen actualizado
             save_summary(sender, new_summary)
 
-            # Ahora preparar respuesta al usuario, usando resumen + mensaje actual
+            # Preparar respuesta al usuario usando el resumen
             context_for_reply = f"Resumen de la conversación hasta ahora: {new_summary}\n\nUsuario dice: {body_in}"
             reply = intelligence_with_tools(context_for_reply)
 
-            # Enviar email
-            send_email(service, sender, SUBJECT, reply)
+            # Enviar respuesta en el mismo hilo
+            send_email(service, sender, SUBJECT, reply, thread_id=thread_id, in_reply_to=message_id)
+
             processed.append(sender)
         finally:
             mark_as_processed(service, m["id"], label_id)
