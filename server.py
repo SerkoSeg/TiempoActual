@@ -106,26 +106,33 @@ async def process_emails():
         prev_summary = get_summary(sender)
 
         # Crear prompt para actualizar resumen
-        prompt = f"""
+        prompt_for_summary = f"""
         Resumen previo de la conversación:
         {prev_summary}
 
         Nuevo mensaje del usuario:
         {body_in}
 
-        Actualiza el resumen de la conversación manteniéndolo conciso:
+        Actualiza el resumen de la conversación manteniéndolo conciso y útil.
         """
 
         try:
             # Generar nuevo resumen usando IA
-            new_summary = intelligence_with_tools(prompt)
+            new_summary = intelligence_with_tools(prompt_for_summary)
 
             # Guardar resumen actualizado
             save_summary(sender, new_summary)
 
-            # Preparar respuesta al usuario usando el resumen
-            context_for_reply = f"Resumen de la conversación hasta ahora: {new_summary}\n\nUsuario dice: {body_in}"
-            reply = intelligence_with_tools(context_for_reply)
+            # Preparar respuesta al usuario usando el resumen como contexto, no como salida
+            reply_prompt = f"""
+            Actúa como un asistente que recuerda el contexto de la conversación.
+            Contexto previo (resumen, no lo muestres al usuario): {new_summary}
+
+            El usuario dice: {body_in}
+
+            Responde directamente al usuario de forma natural, sin mencionar ni explicar el resumen.
+            """
+            reply = intelligence_with_tools(reply_prompt)
 
             # Enviar respuesta en el mismo hilo
             send_email(service, sender, SUBJECT, reply, thread_id=thread_id, in_reply_to=message_id)
