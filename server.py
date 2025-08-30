@@ -1,4 +1,5 @@
 import os
+import sqlite3
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -29,6 +30,44 @@ app = FastAPI()
 BASE_DIR = Path(__file__).resolve().parent
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+# --------- BASE DE DATOS ----------
+DB_PATH = BASE_DIR / "conversations.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    # Tabla para guardar resumen por usuario
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS conversation_summary (
+            sender TEXT PRIMARY KEY,
+            summary TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def get_summary(sender):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT summary FROM conversation_summary WHERE sender=?", (sender,))
+    row = c.fetchone()
+    conn.close()
+    return row[0] if row else ""
+
+def save_summary(sender, summary):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO conversation_summary (sender, summary)
+        VALUES (?, ?)
+        ON CONFLICT(sender) DO UPDATE SET summary=excluded.summary
+    """, (sender, summary))
+    conn.commit()
+    conn.close()
+
+# Crear DB si no existe
+init_db()
 
 # --------- FUNCIONES AUXILIARES ----------
 def get_subject(msg):
@@ -61,11 +100,32 @@ async def process_emails():
             mark_as_processed(service, m["id"], label_id)
             continue
 
-        # Combinar asunto y cuerpo en un solo texto para la IA
-        combined_text = f"Asunto: {subject_in}\nMensaje: {body_in}".strip()
+        # Recuperar el resumen actual del remitente
+        prev_summary = get_summary(sender)
+
+        # Crear contexto con resumen previo + nuevo mensaje
+        prompt = f"""
+        Resumen previo de la conversación:
+        {prev_summary}
+
+        Nuevo mensaje del usuario:
+        {body_in}
+
+        Actualiza el resumen de la conversación manteniéndolo conciso:
+        """
 
         try:
-            reply = intelligence_with_tools(combined_text)
+            # Generar nuevo resumen usando IA
+            new_summary = intelligence_with_tools(prompt)
+
+            # Guardar resumen actualizado
+            save_summary(sender, new_summary)
+
+            # Ahora preparar respuesta al usuario, usando resumen + mensaje actual
+            context_for_reply = f"Resumen de la conversación hasta ahora: {new_summary}\n\nUsuario dice: {body_in}"
+            reply = intelligence_with_tools(context_for_reply)
+
+            # Enviar email
             send_email(service, sender, SUBJECT, reply)
             processed.append(sender)
         finally:
